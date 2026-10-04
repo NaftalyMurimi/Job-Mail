@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.utils.logger import logger, setup_logger
-
+from app.api import auth
 # Configure logging before anything else runs
 setup_logger(settings.debug)
 
@@ -18,7 +18,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
+app.include_router(auth.router)
 
 @app.get("/health")
 def health():

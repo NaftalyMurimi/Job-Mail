@@ -2,13 +2,15 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    # Defaults are used if the value is missing from .env
     app_name: str = "Job Mail"
     debug: bool = True
 
-    # Read values from the .env file; ignore keys we haven't defined yet
+    # No default on purpose: the app refuses to start if SECRET_KEY is missing
+    secret_key: str
+    algorithm: str = "HS256"
+    access_token_expire_minutes: int = 60 * 24  # tokens last 24 hours
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 
-# One shared instance imported everywhere else in the app
 settings = Settings()
