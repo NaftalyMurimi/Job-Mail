@@ -1,28 +1,34 @@
-# TEMPORARY in-memory user store.
-# Phase 2 replaces the bodies of these functions with Supabase calls,
-# keeping the same names and return values so nothing else changes.
-import uuid
-from datetime import datetime, timezone
-
-_users: dict[str, dict] = {}
+from app.database import supabase
 
 
 def create_user(email: str, hashed_password: str, full_name: str | None = None) -> dict:
-    user = {
-        "id": str(uuid.uuid4()),
-        "email": email.lower(),  # store lowercase so lookups are case-insensitive
-        "hashed_password": hashed_password,
-        "full_name": full_name,
-        "created_at": datetime.now(timezone.utc).isoformat(),
-    }
-    _users[user["id"]] = user
-    return user
+    result = (
+        supabase.table("users")
+        .insert({
+            "email": email.lower(),
+            "hashed_password": hashed_password,
+            "full_name": full_name,
+        })
+        .execute()
+    )
+    return result.data[0]
 
 
 def get_user_by_email(email: str) -> dict | None:
-    email = email.lower()
-    return next((u for u in _users.values() if u["email"] == email), None)
+    result = (
+        supabase.table("users")
+        .select("*")
+        .eq("email", email.lower())
+        .execute()
+    )
+    return result.data[0] if result.data else None
 
 
 def get_user_by_id(user_id: str) -> dict | None:
-    return _users.get(user_id)
+    result = (
+        supabase.table("users")
+        .select("*")
+        .eq("id", user_id)
+        .execute()
+    )
+    return result.data[0] if result.data else None

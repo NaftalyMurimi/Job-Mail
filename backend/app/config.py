@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 60 * 24  # tokens last 24 hours
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
-
+    supabase_url: str
+    supabase_service_key: str
 
 settings = Settings()
