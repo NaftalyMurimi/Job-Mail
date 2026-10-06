@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api import auth, cvs, scan
 from app.config import settings
 from app.utils.logger import logger, setup_logger
 from app.api import auth
@@ -19,6 +20,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(auth.router)
+
+
+app.include_router(auth.router)
+app.include_router(cvs.router)
+app.include_router(scan.router)
 
 @app.get("/health")
 def health():

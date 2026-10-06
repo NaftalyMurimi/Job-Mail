@@ -14,4 +14,10 @@ class Settings(BaseSettings):
     supabase_url: str
     supabase_service_key: str
 
+        # OpenAI + Gmail (Phase 3)
+    openai_api_key: str
+    openai_model: str = "gpt-4o-mini"
+    gmail_query: str = "newer_than:3d"
+    notify_threshold: int = 7
+
 settings = Settings()
