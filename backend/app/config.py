@@ -14,9 +14,13 @@ class Settings(BaseSettings):
     supabase_url: str
     supabase_service_key: str
 
-        # OpenAI + Gmail (Phase 3)
-    openai_api_key: str
-    openai_model: str = "gpt-4o-mini"
+        # LLM provider (Phase 3), any OpenAI-compatible API
+    llm_api_key: str
+    llm_base_url: str = "https://api.groq.com/openai/v1"
+    llm_model: str = "llama-3.3-70b-versatile"
+    llm_delay_seconds: float = 2.0
+
+    # Gmail scan (Phase 3)
     gmail_query: str = "newer_than:3d"
     notify_threshold: int = 7
 

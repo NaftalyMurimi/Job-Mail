@@ -4,28 +4,16 @@ from openai import OpenAI
 
 from app.config import settings
 
-client = OpenAI(api_key=settings.openai_api_key)
+# Works with any OpenAI-compatible provider (Groq now, OpenAI later): only .env changes.
+# max_retries makes the SDK wait and retry automatically when a rate limit (429) is hit.
+client = OpenAI(
+    api_key=settings.llm_api_key,
+    base_url=settings.llm_base_url,
+    max_retries=6,
+)
 
 MAX_EMAIL_CHARS = 4000
 MAX_CV_CHARS = 6000
-
-RESULT_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "is_job_advert": {"type": "boolean"},
-        "category": {"type": "string"},
-        "job_title": {"type": ["string", "null"]},
-        "company": {"type": ["string", "null"]},
-        "match_score": {"type": ["integer", "null"]},
-        "best_cv_number": {"type": ["integer", "null"]},
-        "reasoning": {"type": "string"},
-    },
-    "required": [
-        "is_job_advert", "category", "job_title", "company",
-        "match_score", "best_cv_number", "reasoning",
-    ],
-    "additionalProperties": False,
-}
 
 SYSTEM_PROMPT = """You are a job-search assistant. You receive one email and the candidate's CVs.
 
@@ -36,9 +24,18 @@ SYSTEM_PROMPT = """You are a job-search assistant. You receive one email and the
 3. Compare that job against EVERY CV. Choose the CV that fits best (best_cv_number) and give
    match_score from 1 (no fit) to 10 (excellent fit), judging skills, experience and seniority.
    Be strict: 9-10 only when the CV clearly satisfies the main requirements.
-4. category: a short snake_case label such as ai_ml, data_analysis, software_dev, other_job, not_job.
-5. reasoning: two sentences max, naming the strongest match and the biggest gap.
-6. If it is not a job advert, set job_title, company, match_score and best_cv_number to null."""
+4. If it is not a job advert, set job_title, company, match_score and best_cv_number to null.
+
+Respond with ONLY a JSON object with exactly these keys:
+{
+  "is_job_advert": true or false,
+  "category": "short_snake_case_label such as ai_ml, data_analysis, software_dev, other_job, not_job",
+  "job_title": "string or null",
+  "company": "string or null",
+  "match_score": integer from 1 to 10, or null,
+  "best_cv_number": integer (the CV number as labelled below), or null,
+  "reasoning": "two sentences max: strongest match and biggest gap"
+}"""
 
 
 def analyze_email(email: dict, cvs: list[dict]) -> dict:
@@ -53,37 +50,36 @@ def analyze_email(email: dict, cvs: list[dict]) -> dict:
     )
 
     response = client.chat.completions.create(
-        model=settings.openai_model,
+        model=settings.llm_model,
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": user_prompt},
         ],
-        response_format={
-            "type": "json_schema",
-            "json_schema": {"name": "email_analysis", "strict": True, "schema": RESULT_SCHEMA},
-        },
+        response_format={"type": "json_object"},
     )
     content = response.choices[0].message.content
     if not content:
-        raise ValueError("OpenAI returned no content")
+        raise ValueError("The model returned no content")
     return _clean(json.loads(content), cvs)
 
 
 def _clean(data: dict, cvs: list[dict]) -> dict:
-    is_job = bool(data["is_job_advert"])
+    """Never trust model output: validate every field before it reaches the database."""
+    is_job = data.get("is_job_advert") is True
     score, cv_id = None, None
     if is_job:
-        if isinstance(data["match_score"], int):
-            score = max(1, min(10, data["match_score"]))
-        n = data["best_cv_number"]
+        raw_score = data.get("match_score")
+        if isinstance(raw_score, (int, float)):
+            score = max(1, min(10, int(raw_score)))
+        n = data.get("best_cv_number")
         if isinstance(n, int) and 1 <= n <= len(cvs):
             cv_id = cvs[n - 1]["id"]
     return {
         "is_job_advert": is_job,
-        "category": data["category"],
-        "job_title": data["job_title"] if is_job else None,
-        "company": data["company"] if is_job else None,
+        "category": str(data.get("category") or ("other_job" if is_job else "not_job")),
+        "job_title": data.get("job_title") if is_job else None,
+        "company": data.get("company") if is_job else None,
         "match_score": score,
         "best_matching_cv_id": cv_id,
-        "reasoning": data["reasoning"],
+        "reasoning": str(data.get("reasoning") or ""),
     }
