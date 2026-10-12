@@ -5,6 +5,8 @@ from app.api import auth, cvs, scan
 from app.config import settings
 from app.utils.logger import logger, setup_logger
 from app.api import auth
+
+from app.api import auth, cvs, scan, user_settings
 # Configure logging before anything else runs
 setup_logger(settings.debug)
 
@@ -25,7 +27,7 @@ app.include_router(auth.router)
 app.include_router(auth.router)
 app.include_router(cvs.router)
 app.include_router(scan.router)
-
+app.include_router(user_settings.router)
 @app.get("/health")
 def health():
     # Simple endpoint to confirm the server is up

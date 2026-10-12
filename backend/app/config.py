@@ -22,6 +22,9 @@ class Settings(BaseSettings):
 
     # Gmail scan (Phase 3)
     gmail_query: str = "newer_than:3d"
-    notify_threshold: int = 7
+
+     # Telegram (Phase 4)
+    telegram_bot_token: str = ""
+    notify_limit: int = 10
 
 settings = Settings()

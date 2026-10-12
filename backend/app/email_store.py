@@ -42,3 +42,23 @@ def list_scanned(user_id: str, min_score: int | None = None, limit: int = 50) ->
         .execute()
         .data
     )
+
+def list_unnotified_matches(user_id: str, threshold: int, limit: int) -> list[dict]:
+    return (
+        supabase.table("scanned_emails")
+        .select("id, gmail_message_id, subject, sender, job_title, company, "
+                "match_score, reasoning, cvs!best_matching_cv_id(name)")
+        .eq("user_id", user_id)
+        .eq("is_job_advert", True)
+        .eq("notified", False)
+        .gt("match_score", threshold)
+        .order("match_score", desc=True)
+        .order("received_at", desc=True)
+        .limit(limit)
+        .execute()
+        .data
+    )
+
+
+def mark_notified(email_id: str) -> None:
+    supabase.table("scanned_emails").update({"notified": True}).eq("id", email_id).execute()

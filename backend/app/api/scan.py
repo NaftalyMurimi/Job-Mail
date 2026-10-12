@@ -5,6 +5,8 @@ from app.agent.gmail_client import GmailAuthError
 from app.agent.scanner import NoCVsError, run_scan
 from app.utils.dependencies import get_current_user
 
+from app.agent.notifier import notify_matches
+
 router = APIRouter(prefix="/scan", tags=["Scan"])
 
 
@@ -28,3 +30,8 @@ def scan_results(
     current_user: dict = Depends(get_current_user),
 ):
     return email_store.list_scanned(current_user["id"], min_score, limit)
+
+
+@router.post("/notify")
+def send_pending_notifications(current_user: dict = Depends(get_current_user)):
+    return notify_matches(current_user["id"])

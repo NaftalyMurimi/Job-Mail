@@ -4,7 +4,8 @@ from app import cv_store, email_store
 from app.agent.analyzer import analyze_email
 from app.agent.gmail_client import get_gmail_service, get_message, list_message_ids
 from app.config import settings
-
+from app import cv_store, email_store, settings_store
+from app.agent.notifier import notify_matches
 
 class NoCVsError(Exception):
     pass
@@ -13,8 +14,10 @@ class NoCVsError(Exception):
 def run_scan(user_id: str, max_emails: int = 10) -> dict:
     cvs = cv_store.get_cvs_with_text(user_id)
     if not cvs:
+        
+        
         raise NoCVsError("No CVs uploaded")
-
+    threshold = settings_store.get_settings(user_id)["score_threshold"]
     service = get_gmail_service()
     ids = list_message_ids(service, settings.gmail_query, max_emails)
     existing = email_store.get_existing_message_ids(user_id, ids)
@@ -45,8 +48,13 @@ def run_scan(user_id: str, max_emails: int = 10) -> dict:
             summary["job_adverts"] += 1
             score = analysis["match_score"] or 0
             logger.info(f"JOB score={score} | {analysis['job_title']} @ {analysis['company']}")
-            if score > settings.notify_threshold:
+            if score > threshold:
                 summary["above_threshold"] += 1
-
+        try:
+            summary["notifications"] = notify_matches(user_id)
+        except Exception:
+            logger.exception("Notification step failed")
+        summary["notifications"] = {"error": "notification step failed, see logs"}
+    
     logger.info(f"Scan finished: {summary}")
     return summary
